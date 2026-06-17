@@ -2,6 +2,7 @@ const db = require("../config/db");
 const crypto = require("crypto");
 const { generateAndStoreVariant } = require("../services/variantService");
 const format = require("pg-format");
+const eventBus = require("../services/eventBus");
 require("dotenv").config();
 
 /**
@@ -435,6 +436,16 @@ async function submitExam(req, res) {
 
     await db.query(updateAttemptQuery, attemptValues);
 
+    // Publish SubmissionReceived event
+    eventBus.publish('SubmissionReceived', {
+      examId,
+      studentId: studentUid,
+      attemptId: attempt.id,
+      score: rawScore,
+      passed,
+      timestamp: new Date().toISOString()
+    });
+
     return res.status(200).json({
       success: true,
       data: {
@@ -656,6 +667,14 @@ async function startExam(req, res) {
     );
 
     await db.query('COMMIT');
+
+    // Publish ExamStarted event
+    eventBus.publish('ExamStarted', {
+      examId,
+      studentId: studentUid,
+      attemptId: newAttempt.id,
+      timestamp: new Date().toISOString()
+    });
 
     return res.status(200).json({
       success: true,

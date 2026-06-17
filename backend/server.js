@@ -7,6 +7,8 @@ const adminController = require("./controllers/adminController");
 const blueprintController = require("./controllers/blueprintController");
 const leakController = require("./controllers/leakController");
 const { verifyToken, verifyAdmin, verifyFacultyOrAdmin } = require("./middleware/authMiddleware");
+const eventBus = require("./services/eventBus");
+const { initSubscribers } = require("./eventSubscribers");
 require("dotenv").config();
 const fs = require("fs");
 const path = require("path");
@@ -122,15 +124,21 @@ app.post("/api/leak/investigate", verifyToken, verifyFacultyOrAdmin, leakControl
 // Start Server after DB init
 async function startServer() {
   await initDatabase();
+  const VectorService = require("./services/VectorService");
+  await VectorService.createCollectionIfNotExists('secureexam_chunks');
   
-  // Initialize Qdrant Vector DB
-  const vectorService = require("./services/VectorService");
-  if (vectorService.client) {
-    await vectorService.createCollectionIfNotExists("secureexam_chunks");
+  if (process.env.REDIS_URL) {
+    const busReady = eventBus.init(process.env.REDIS_URL);
+    if (busReady) {
+      console.log('Redis Event Bus initialized successfully.');
+      initSubscribers();
+    } else {
+      console.warn('Redis Event Bus failed to initialize.');
+    }
   }
 
   app.listen(PORT, () => {
-    console.log(`Backend server is running on port ${PORT}`);
+    console.log(`Server running on port ${PORT}`);
   });
 }
 
