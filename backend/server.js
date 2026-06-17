@@ -114,6 +114,13 @@ app.get("/api/admin/export/:type", verifyToken, verifyAdmin, adminController.exp
 // Start Server after DB init
 async function startServer() {
   await initDatabase();
+  
+  // Initialize Qdrant Vector DB
+  const vectorService = require("./services/VectorService");
+  if (vectorService.client) {
+    await vectorService.createCollectionIfNotExists("secureexam_chunks");
+  }
+
   app.listen(PORT, () => {
     console.log(`Backend server is running on port ${PORT}`);
   });

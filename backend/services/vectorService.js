@@ -1,86 +1,124 @@
-/**
- * VectorService: Qdrant vector database operations
- */
 const { QdrantClient } = require('@qdrant/js-client-rest');
-const envConfig = require('../config/env');
-const axios = require('axios');
+require('dotenv').config();
 
-const QDRANT_URL = envConfig.qdrant.url;
-const COLLECTION_NAME = 'document_chunks';
+class VectorService {
+  constructor() {
+    const url = process.env.QDRANT_URL;
+    const apiKey = process.env.QDRANT_API_KEY;
 
-async function createCollection() {
-  try {
-    await axios.put(
-      `${QDRANT_URL}/collections/${COLLECTION_NAME}`,
-      {
-        vectors: {
-          size: 1536,
-          distance: 'Cosine'
-        }
+    if (!url || !apiKey) {
+      console.warn("Qdrant credentials not found in environment variables. Vector service is disabled.");
+      this.client = null;
+      return;
+    }
+
+    this.client = new QdrantClient({
+      url: url,
+      apiKey: apiKey,
+    });
+    
+    // BAAI/bge-small-en-v1.5 has 384 dimensions
+    this.vectorSize = 384; 
+    console.log("VectorService initialized with Qdrant client.");
+  }
+
+  /**
+   * Initializes the collection if it doesn't exist.
+   * @param {string} collectionName
+   */
+  async createCollectionIfNotExists(collectionName) {
+    if (!this.client) return;
+
+    try {
+      const collections = await this.client.getCollections();
+      const exists = collections.collections.some(c => c.name === collectionName);
+      
+      if (!exists) {
+        await this.client.createCollection(collectionName, {
+          vectors: {
+            size: this.vectorSize,
+            distance: 'Cosine',
+          },
+        });
+        console.log(`Qdrant collection '${collectionName}' created.`);
+      } else {
+        console.log(`Qdrant collection '${collectionName}' already exists.`);
       }
-    );
-    console.log('VectorService: collection created or exists');
-  } catch (err) {
-    // Collection might already exist
-    console.error('VectorService createCollection error:', err.response?.data || err.message);
+    } catch (error) {
+      console.error("Failed to ensure Qdrant collection exists:", error);
+    }
   }
-}
 
-async function uploadVector(pointId, vector, payload) {
-  try {
-    await axios.put(
-      `${QDRANT_URL}/collections/${COLLECTION_NAME}/points`,
-      {
-        points: [
-          {
-            id: pointId,
-            vector: vector,
-            payload: payload
-          }
-        ]
-      }
-    );
-    return true;
-  } catch (err) {
-    console.error('VectorService uploadVector error:', err.message);
-    throw err;
+  /**
+   * Upserts vectorized chunks to Qdrant.
+   * @param {string} collectionName
+   * @param {Array} points - Array of { id, vector, payload } objects
+   */
+  async addChunks(collectionName, points) {
+    if (!this.client) throw new Error("Qdrant client not initialized.");
+    
+    try {
+      await this.client.upsert(collectionName, {
+        wait: true,
+        points: points,
+      });
+      return true;
+    } catch (error) {
+      console.error("Failed to add chunks to Qdrant:", error);
+      throw error;
+    }
   }
-}
 
-async function uploadVectorBatch(points) {
-  try {
-    await axios.put(
-      `${QDRANT_URL}/collections/${COLLECTION_NAME}/points`,
-      { points }
-    );
-    return true;
-  } catch (err) {
-    console.error('VectorService uploadVectorBatch error:', err.message);
-    throw err;
-  }
-}
+  /**
+   * Searches for similar vectors.
+   * @param {string} collectionName
+   * @param {number[]} queryVector
+   * @param {number} topK
+   */
+  async searchSimilar(collectionName, queryVector, topK = 5) {
+    if (!this.client) throw new Error("Qdrant client not initialized.");
 
-async function searchVectors(queryVector, limit = 5) {
-  try {
-    const response = await axios.post(
-      `${QDRANT_URL}/collections/${COLLECTION_NAME}/points/search`,
-      {
+    try {
+      const results = await this.client.search(collectionName, {
         vector: queryVector,
-        limit: limit,
-        with_payload: true
-      }
-    );
-    return response.data.result || [];
-  } catch (err) {
-    console.error('VectorService searchVectors error:', err.message);
-    throw err;
+        limit: topK,
+        with_payload: true,
+      });
+      return results;
+    } catch (error) {
+      console.error("Failed to search Qdrant:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Deletes chunks associated with a specific document.
+   * @param {string} collectionName
+   * @param {string} documentId
+   */
+  async deleteChunks(collectionName, documentId) {
+    if (!this.client) throw new Error("Qdrant client not initialized.");
+
+    try {
+      await this.client.delete(collectionName, {
+        wait: true,
+        filter: {
+          must: [
+            {
+              key: "document_id",
+              match: {
+                value: documentId,
+              },
+            },
+          ],
+        },
+      });
+      return true;
+    } catch (error) {
+      console.error("Failed to delete chunks from Qdrant:", error);
+      throw error;
+    }
   }
 }
 
-module.exports = {
-  createCollection,
-  uploadVector,
-  uploadVectorBatch,
-  searchVectors,
-  COLLECTION_NAME
-};
+module.exports = new VectorService();
