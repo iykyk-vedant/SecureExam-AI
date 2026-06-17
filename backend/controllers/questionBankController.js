@@ -21,6 +21,17 @@ async function uploadDocument(req, res) {
   const fileName = req.file.originalname;
 
   try {
+    // Check if the Knowledge Base is globally frozen by an active exam
+    const freezeCheck = await db.query(
+      "SELECT id FROM exams WHERE frozen_at IS NOT NULL AND status IN ('published', 'ongoing') LIMIT 1"
+    );
+    if (freezeCheck.rows.length > 0) {
+      return res.status(403).json({
+        success: false,
+        error: "Knowledge Base is currently FROZEN due to an active exam. No new documents can be uploaded at this time."
+      });
+    }
+
     const queryText = `
       INSERT INTO uploaded_documents (file_name, uploaded_by, processing_status)
       VALUES ($1, $2, 'UPLOADED')

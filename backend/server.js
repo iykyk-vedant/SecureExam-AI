@@ -76,6 +76,9 @@ app.post("/api/exams/:examId/submit", verifyToken, examController.submitExam);
 app.get("/api/exams/:examId/results", verifyToken, examController.getExamResults);
 app.get("/api/students/attempts", verifyToken, examController.getStudentAttempts);
 
+// Knowledge Base Freeze Endpoint
+app.post("/api/knowledge-base/freeze/:examId", verifyToken, verifyFacultyOrAdmin, examController.freezeKnowledgeBase);
+
 // Blueprint Endpoints
 app.post("/api/blueprints", verifyToken, verifyFacultyOrAdmin, blueprintController.createBlueprint);
 app.get("/api/blueprints", verifyToken, verifyFacultyOrAdmin, blueprintController.listBlueprints);

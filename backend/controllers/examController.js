@@ -771,6 +771,40 @@ async function updateExamBlueprints(req, res) {
   }
 }
 
+/**
+ * Freezes the knowledge base for a specific exam.
+ * Route: POST /api/knowledge-base/freeze/:examId
+ */
+async function freezeKnowledgeBase(req, res) {
+  const { examId } = req.params;
+  const userUid = req.user.uid;
+
+  try {
+    const examCheck = await db.query("SELECT * FROM exams WHERE id = $1 LIMIT 1", [examId]);
+    if (examCheck.rows.length === 0) {
+      return res.status(404).json({ success: false, error: "Exam not found." });
+    }
+
+    const dbResult = await db.query(
+      "UPDATE exams SET frozen_at = NOW() WHERE id = $1 RETURNING *",
+      [examId]
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Knowledge base successfully frozen for this exam. No further documents can be uploaded.",
+      data: dbResult.rows[0]
+    });
+  } catch (error) {
+    console.error("Failed to freeze knowledge base:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Failed to freeze knowledge base.",
+      details: error.message
+    });
+  }
+}
+
 module.exports = {
   createExam,
   addQuestions,
@@ -782,5 +816,6 @@ module.exports = {
   getStudentAttempts,
   startExam,
   getExamQuestions,
-  updateExamBlueprints
+  updateExamBlueprints,
+  freezeKnowledgeBase
 };
