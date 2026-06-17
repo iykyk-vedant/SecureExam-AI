@@ -5,6 +5,7 @@ const authController = require("./controllers/authController");
 const examController = require("./controllers/examController");
 const adminController = require("./controllers/adminController");
 const blueprintController = require("./controllers/blueprintController");
+const leakController = require("./controllers/leakController");
 const { verifyToken, verifyAdmin, verifyFacultyOrAdmin } = require("./middleware/authMiddleware");
 require("dotenv").config();
 const fs = require("fs");
@@ -113,6 +114,10 @@ app.get("/api/admin/stats", verifyToken, verifyAdmin, adminController.getAdminSt
 app.get("/api/admin/settings", verifyToken, verifyAdmin, adminController.getSystemSettings);
 app.post("/api/admin/settings", verifyToken, verifyAdmin, adminController.updateSystemSetting);
 app.get("/api/admin/export/:type", verifyToken, verifyAdmin, adminController.exportAuditCSV);
+
+// Leak Detection Endpoints
+app.post("/api/leak/report", verifyToken, verifyFacultyOrAdmin, leakController.reportLeak);
+app.post("/api/leak/investigate", verifyToken, verifyFacultyOrAdmin, leakController.investigateLeak);
 
 // Start Server after DB init
 async function startServer() {
