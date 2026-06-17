@@ -7,12 +7,15 @@ const adminController = require("./controllers/adminController");
 const blueprintController = require("./controllers/blueprintController");
 const leakController = require("./controllers/leakController");
 const { verifyToken, verifyAdmin, verifyFacultyOrAdmin } = require("./middleware/authMiddleware");
+const { requireRoles } = require("./middleware/rbacMiddleware");
 const eventBus = require("./services/eventBus");
 const { initSubscribers } = require("./eventSubscribers");
 require("dotenv").config();
 const fs = require("fs");
 const path = require("path");
 const multer = require("multer");
+const helmet = require("helmet");
+const rateLimit = require("express-rate-limit");
 const questionBankController = require("./controllers/questionBankController");
 
 // Ensure uploads directory exists
@@ -37,8 +40,17 @@ const app = express();
 const PORT = envConfig.server.port;
 
 // Middleware
+app.use(helmet());
 app.use(cors());
 app.use(express.json());
+
+// Rate Limiting
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  message: "Too many requests from this IP, please try again after 15 minutes"
+});
+app.use("/api/", apiLimiter);
 
 // Initialize Database Tables using Knex
 async function initDatabase() {
