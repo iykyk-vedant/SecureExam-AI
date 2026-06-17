@@ -149,6 +149,9 @@ async function startServer() {
     }
   }
 
+  const blockchainService = require("./services/blockchainService");
+  blockchainService.init();
+
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
   });
