@@ -528,6 +528,8 @@ async function getStudentAttempts(req, res) {
         ea.cgpa, 
         ea.violations_count,
         ea.submitted_at,
+        ea.blockchain_tx_hash,
+        ea.certificate_hash,
         e.title as exam_title
       FROM exam_attempts ea
       JOIN exams e ON ea.exam_id = e.id
@@ -579,7 +581,10 @@ async function startExam(req, res) {
     if (activeAttemptRes.rows.length > 0) {
       const attempt = activeAttemptRes.rows[0];
       const questionsRes = await db.query(
-        "SELECT id, blueprint_id, question_text, options FROM attempt_questions WHERE attempt_id = $1 ORDER BY created_at ASC",
+        `SELECT aq.id, aq.blueprint_id, aq.question_text, aq.options, qal.question_hash 
+         FROM attempt_questions aq
+         LEFT JOIN question_audit_log qal ON aq.attempt_id = qal.attempt_id AND aq.blueprint_id = qal.blueprint_id
+         WHERE aq.attempt_id = $1 ORDER BY aq.created_at ASC`,
         [attempt.id]
       );
 

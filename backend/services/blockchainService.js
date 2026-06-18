@@ -3,7 +3,7 @@ const fs = require("fs");
 const path = require("path");
 
 // Hardhat ABI path after compilation
-const ABI_PATH = path.join(__dirname, "../artifacts/contracts/SecureExamCredential.sol/SecureExamCredential.json");
+const ABI_PATH = path.join(__dirname, "../../blockchain/artifacts/contracts/CredentialRegistry.sol/CredentialRegistry.json");
 
 let provider;
 let wallet;
@@ -42,16 +42,16 @@ function init() {
 /**
  * Mints a credential to the blockchain.
  * @param {string} studentUid
- * @param {string} examId 
+ * @param {string} attemptId 
  * @param {string} certificateHash 
  */
-async function mintCredential(studentUid, examId, certificateHash) {
+async function mintCredential(studentUid, attemptId, certificateHash) {
   if (!contract) {
     throw new Error("Blockchain Service is not initialized. Cannot mint credential.");
   }
 
   try {
-    const tx = await contract.mintCredential(studentUid, examId, certificateHash);
+    const tx = await contract.issueCredential(attemptId, studentUid, certificateHash, "ipfs://none");
     console.log(`Minting credential for student ${studentUid}... Transaction Hash: ${tx.hash}`);
     const receipt = await tx.wait();
     console.log(`Credential minted successfully in block ${receipt.blockNumber}`);

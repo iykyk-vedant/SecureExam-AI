@@ -15,7 +15,8 @@ import {
   Clock,
   History,
   CheckCircle,
-  XCircle
+  XCircle,
+  ExternalLink
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -325,6 +326,7 @@ export default function StudentDashboard() {
                           <th className="p-4 font-bold text-center">Score</th>
                           <th className="p-4 font-bold text-center">Grade (%)</th>
                           <th className="p-4 font-bold text-center">Result</th>
+                          <th className="p-4 font-bold text-center">Blockchain</th>
                           <th className="p-4 font-bold">Submitted At</th>
                         </tr>
                       </thead>
@@ -346,6 +348,22 @@ export default function StudentDashboard() {
                                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/10 border border-rose-500/30 text-rose-400 font-mono flex items-center gap-1 w-max mx-auto">
                                   <XCircle className="h-3 w-3" /> Failed
                                 </span>
+                              )}
+                            </td>
+                            <td className="p-4 text-center">
+                              {row.blockchain_tx_hash ? (
+                                <a 
+                                  href={`https://amoy.polygonscan.com/tx/${row.blockchain_tx_hash}`} 
+                                  target="_blank" 
+                                  rel="noreferrer"
+                                  className="px-2 py-1 rounded border border-indigo-500/30 bg-indigo-500/10 text-indigo-400 text-[10px] font-mono hover:bg-indigo-500/20 transition flex items-center gap-1 w-max mx-auto"
+                                >
+                                  🔗 Verified <ExternalLink className="h-3 w-3" />
+                                </a>
+                              ) : row.passed ? (
+                                <span className="text-[10px] text-slate-600 font-mono italic">Minting...</span>
+                              ) : (
+                                <span className="text-[10px] text-slate-600 font-mono">-</span>
                               )}
                             </td>
                             <td className="p-4 font-mono text-slate-500">

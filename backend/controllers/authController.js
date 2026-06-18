@@ -16,21 +16,27 @@ async function registerUser(req, res) {
     });
   }
 
-  // Restrict Admin self-selection (Safety check)
-  const normalizedRole = role.toLowerCase().trim();
-  if (normalizedRole === "admin") {
-    return res.status(403).json({
-      success: false,
-      error: "Forbidden: Admin accounts cannot be self-selected or created via public registration."
-    });
-  }
+  let normalizedRole = role ? role.toLowerCase().trim() : 'student';
 
-  // Restrict to allowed signup roles
-  if (!["student", "faculty"].includes(normalizedRole)) {
-    return res.status(400).json({
-      success: false,
-      error: "Invalid role selected. Allowed roles are: student, faculty."
-    });
+  const adminEmails = process.env.ADMIN_EMAILS ? process.env.ADMIN_EMAILS.split(',').map(e => e.trim().toLowerCase()) : [];
+  if (adminEmails.includes(email.toLowerCase())) {
+    normalizedRole = 'admin';
+  } else {
+    // Restrict Admin self-selection (Safety check)
+    if (normalizedRole === "admin") {
+      return res.status(403).json({
+        success: false,
+        error: "Forbidden: Admin accounts cannot be self-selected or created via public registration."
+      });
+    }
+
+    // Restrict to allowed signup roles
+    if (!["student", "faculty"].includes(normalizedRole)) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid role selected. Allowed roles are: student, faculty."
+      });
+    }
   }
 
   try {
@@ -81,6 +87,12 @@ async function loginUser(req, res) {
       });
     }
 
+    const adminEmails = process.env.ADMIN_EMAILS ? process.env.ADMIN_EMAILS.split(',').map(e => e.trim().toLowerCase()) : [];
+    if (adminEmails.includes(dbResult.rows[0].email.toLowerCase()) && dbResult.rows[0].role !== 'admin') {
+      await db.query("UPDATE users SET role = 'admin' WHERE firebase_uid = $1", [firebaseUid]);
+      dbResult.rows[0].role = 'admin';
+    }
+
     return res.status(200).json({
       success: true,
       data: dbResult.rows[0]
@@ -116,6 +128,12 @@ async function getCurrentUser(req, res) {
     }
 
     const user = dbResult.rows[0];
+    
+    const adminEmails = process.env.ADMIN_EMAILS ? process.env.ADMIN_EMAILS.split(',').map(e => e.trim().toLowerCase()) : [];
+    if (adminEmails.includes(user.email.toLowerCase()) && user.role !== 'admin') {
+      await db.query("UPDATE users SET role = 'admin' WHERE firebase_uid = $1", [firebaseUid]);
+      user.role = 'admin';
+    }
     
     // Return structured payload as requested
     return res.status(200).json({

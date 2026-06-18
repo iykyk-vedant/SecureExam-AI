@@ -28,6 +28,11 @@ export function AuthProvider({ children }) {
         try {
           setCurrentUser(user);
           const idToken = await user.getIdToken();
+          console.log("\n\n=== COPY THIS TOKEN FOR POSTMAN ===");
+          console.log(idToken);
+          console.log("===================================\n\n");
+          
+          localStorage.setItem('token', idToken);
           
           // Hydrate user profile and system role from PostgreSQL
           const response = await axios.get(`${API_BASE_URL}/api/auth/me`, {

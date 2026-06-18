@@ -15,10 +15,26 @@ import {
   Clock,
   Loader2,
   RefreshCw,
-  Save
+  Save,
+  Search
 } from "lucide-react";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+
+// Zero-Width Steganography Decoder
+// Extracts and decodes hidden binary from zero-width characters
+const decodeZeroWidth = (text) => {
+  if (!text) return "";
+  const match = text.match(/([\u200B\u200C]+)\u200D/);
+  if (!match) return "";
+  
+  const binary = match[1].replace(/\u200B/g, '0').replace(/\u200C/g, '1');
+  let result = '';
+  for (let i = 0; i < binary.length; i += 8) {
+    result += String.fromCharCode(parseInt(binary.substr(i, 8), 2));
+  }
+  return result;
+};
 
 export default function AdminDashboard() {
   const { currentUser, profileName, logout } = useAuth();
@@ -35,6 +51,12 @@ export default function AdminDashboard() {
   const [settingsLoading, setSettingsLoading] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
   const [settingsSuccess, setSettingsSuccess] = useState(false);
+
+  // Leak Trace States
+  const [leakHash, setLeakHash] = useState("");
+  const [leakResult, setLeakResult] = useState(null);
+  const [leakLoading, setLeakLoading] = useState(false);
+  const [leakError, setLeakError] = useState("");
 
   // Fetch stats on mount
   useEffect(() => {
@@ -83,6 +105,38 @@ export default function AdminDashboard() {
       fetchSettings();
     }
   }, [activeTab]);
+
+  const handleLeakTrace = async (e) => {
+    e.preventDefault();
+    if (!leakHash.trim()) return;
+    
+    setLeakLoading(true);
+    setLeakResult(null);
+    setLeakError("");
+
+    let finalHash = leakHash.trim();
+    const hiddenHash = decodeZeroWidth(leakHash);
+    if (hiddenHash) {
+      finalHash = hiddenHash;
+    }
+
+    try {
+      const headers = await getAuthHeaders();
+      const response = await axios.post(
+        `${API_BASE_URL}/api/leak/report`, 
+        { question_hash: finalHash },
+        headers
+      );
+      if (response.data.success) {
+        setLeakResult(response.data);
+      }
+    } catch (err) {
+      console.error("Leak trace failed:", err);
+      setLeakError(err.response?.data?.error || "Investigation failed or hash not found.");
+    } finally {
+      setLeakLoading(false);
+    }
+  };
 
   // Handle updating the Institution Name configuration
   const handleUpdateSettings = async (e) => {
@@ -247,6 +301,16 @@ export default function AdminDashboard() {
                 }`}
               >
                 Settings
+              </button>
+              <button
+                onClick={() => setActiveTab("leak")}
+                className={`px-3 py-2 rounded-lg font-bold transition flex items-center gap-1.5 ${
+                  activeTab === "leak" 
+                    ? "bg-rose-600 text-white shadow-md shadow-rose-600/20" 
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                Leak Trace
               </button>
             </div>
             
@@ -634,6 +698,83 @@ export default function AdminDashboard() {
               </section>
             </div>
 
+          </div>
+        )}
+
+        {activeTab === "leak" && (
+          <div className="glass-panel rounded-2xl p-8 border border-rose-900 shadow-2xl max-w-3xl mx-auto w-full">
+            <div className="flex items-center gap-3 border-b border-rose-900/50 pb-5 mb-6">
+              <div className="h-10 w-10 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400">
+                <Search className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-lg font-extrabold text-slate-200 font-mono tracking-tight uppercase">
+                  Cryptographic Leak Trace
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Paste the suspected leaked question text (to extract invisible watermarks) or the direct SHA-256 hash to trace the specific student it was assigned to.
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleLeakTrace} className="flex flex-col gap-4 mb-8">
+              <div className="flex gap-3 font-mono">
+                <input
+                  type="text"
+                  value={leakHash}
+                  onChange={(e) => setLeakHash(e.target.value)}
+                  placeholder="Paste Leaked Text or SHA-256 Hash..."
+                  className="flex-1 bg-slate-950/80 border border-slate-800 focus:border-rose-500 rounded-xl px-4 py-3 text-slate-200 focus:outline-none focus:ring-1 focus:ring-rose-500 transition text-sm"
+                  required
+                />
+                <button
+                  type="submit"
+                  disabled={leakLoading}
+                  className="px-6 py-3 bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white rounded-xl text-sm font-bold transition flex items-center gap-2 shadow-md shadow-rose-600/20"
+                >
+                  {leakLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                  Investigate
+                </button>
+              </div>
+            </form>
+
+            {leakError && (
+              <div className="p-4 bg-amber-950/20 border border-amber-900/30 text-amber-400 text-sm rounded-xl font-mono font-bold flex items-center gap-2">
+                <AlertOctagon className="h-5 w-5" />
+                {leakError}
+              </div>
+            )}
+
+            {leakResult && (
+              <div className="bg-slate-900/80 border border-emerald-900/50 p-6 rounded-xl relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-4 opacity-10">
+                  <CheckCircle2 className="h-32 w-32 text-emerald-500" />
+                </div>
+                
+                <h4 className="text-emerald-400 font-black tracking-widest uppercase text-xs mb-4">
+                  Match Identified!
+                </h4>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10 font-mono">
+                  <div>
+                    <p className="text-[10px] text-slate-500 uppercase">Suspected Student</p>
+                    <p className="text-lg font-bold text-slate-200 mt-1">{leakResult.data.suspect_student_id}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-slate-500 uppercase">Exam ID</p>
+                    <p className="text-sm font-bold text-slate-300 mt-1">{leakResult.data.exam_id}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-slate-500 uppercase">Confidence Score</p>
+                    <p className="text-xl font-black text-rose-400 mt-1">{(leakResult.data.confidence_score * 100).toFixed(2)}%</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-slate-500 uppercase">Similarity / Distance</p>
+                    <p className="text-sm font-bold text-slate-300 mt-1">Score: {leakResult.data.score}</p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

@@ -16,6 +16,17 @@ import {
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
+// Zero-Width Steganography Encoder
+// Converts a hex string (hash) to binary, then to zero-width characters (\u200B and \u200C)
+const encodeToZeroWidth = (text) => {
+  if (!text) return "";
+  const binary = text.split('').map(char => {
+    return char.charCodeAt(0).toString(2).padStart(8, '0');
+  }).join('');
+  
+  return binary.split('').map(b => b === '0' ? '\u200B' : '\u200C').join('') + '\u200D'; // \u200D is the terminator
+};
+
 export default function AttemptExam() {
   const { examId } = useParams();
   const navigate = useNavigate();
@@ -278,8 +289,19 @@ export default function AttemptExam() {
   const answeredCount = Object.keys(answers).length;
   const progressPercent = questions.length > 0 ? (answeredCount / questions.length) * 100 : 0;
 
+  const watermarkStyle = currentQuestion?.question_hash ? {
+    backgroundImage: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='350' height='250'><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-family='monospace' font-size='14' fill='%2364748b' opacity='0.04' transform='rotate(-25 175 125)'>${currentQuestion.question_hash}</text></svg>")`,
+    backgroundRepeat: 'repeat'
+  } : {};
+
   return (
-    <div className="min-h-screen radial-bg flex flex-col">
+    <div className="min-h-screen radial-bg flex flex-col relative">
+      {/* Forensic Screen Watermark Overlay */}
+      <div 
+        className="fixed inset-0 pointer-events-none z-0" 
+        style={watermarkStyle}
+      ></div>
+
       {/* Exam Header */}
       <header className="border-b border-slate-900 bg-slate-950/80 backdrop-blur-md px-6 py-4 flex items-center justify-between sticky top-0 z-50">
         <div className="flex items-center gap-3">
@@ -316,7 +338,7 @@ export default function AttemptExam() {
       </header>
 
       {/* Main Container */}
-      <main className="flex-1 max-w-4xl w-full mx-auto px-4 py-8 flex flex-col gap-6">
+      <main className="flex-1 max-w-4xl w-full mx-auto px-4 py-8 flex flex-col gap-6 relative z-10">
         
         {/* Progress Bar */}
         <div className="w-full bg-slate-950 border border-slate-900 rounded-full h-3 p-0.5 overflow-hidden">
@@ -357,7 +379,12 @@ export default function AttemptExam() {
               <span className="h-8 w-8 rounded-lg bg-indigo-600/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center font-mono font-bold text-sm flex-shrink-0">
                 Q
               </span>
-              <h3 className="text-base font-bold text-slate-200 leading-relaxed pt-0.5">
+              <h3 className="text-base font-bold text-slate-200 leading-relaxed pt-0.5 relative">
+                {/* Invisible Steganographic Watermark */}
+                <span className="absolute opacity-0 select-all" aria-hidden="true">
+                  {encodeToZeroWidth(currentQuestion.question_hash)}
+                </span>
+                {encodeToZeroWidth(currentQuestion.question_hash)}
                 {currentQuestion.question_text}
               </h3>
             </div>
@@ -413,6 +440,13 @@ export default function AttemptExam() {
             <ChevronRight className="h-4 w-4" />
           </button>
         </section>
+
+        {/* Forensic Footer */}
+        {currentQuestion?.question_hash && (
+          <div className="mt-8 text-center text-[10px] text-slate-700 font-mono">
+            Session Ref: {currentQuestion.question_hash}
+          </div>
+        )}
       </main>
     </div>
   );

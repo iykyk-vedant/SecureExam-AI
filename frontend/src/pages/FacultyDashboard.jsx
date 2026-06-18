@@ -749,6 +749,21 @@ export default function FacultyDashboard() {
     }
   };
 
+  // Handle Knowledge Base Freeze
+  const handleFreezeExam = async (examId) => {
+    if (!window.confirm("Freeze the Knowledge Base for this exam? This permanently locks the document context used to generate its questions.")) return;
+    try {
+      const headers = await getAuthHeaders();
+      const response = await axios.post(`${API_BASE_URL}/api/knowledge-base/freeze/${examId}`, {}, headers);
+      if (response.data.success) {
+        alert("Knowledge Base successfully frozen!");
+      }
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.error || "Failed to freeze knowledge base.");
+    }
+  };
+
   // RENDER DYNAMIC STATUS BADGE
   const renderStatusBadge = (status, effectiveStatus) => {
     if (status === "published" && effectiveStatus === "scheduled") {
@@ -988,6 +1003,14 @@ export default function FacultyDashboard() {
                       >
                         <Eye className="h-3.5 w-3.5" />
                         View Results
+                      </button>
+
+                      <button
+                        onClick={() => handleFreezeExam(exam.id)}
+                        className="px-3.5 py-2 font-bold bg-amber-950/30 hover:bg-amber-950/50 border border-amber-900/40 text-amber-400 rounded-xl transition flex items-center gap-1.5"
+                      >
+                        <ShieldCheck className="h-3.5 w-3.5" />
+                        Freeze KB
                       </button>
                     </div>
                   </div>
