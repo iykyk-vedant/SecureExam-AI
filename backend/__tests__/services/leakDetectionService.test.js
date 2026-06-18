@@ -1,12 +1,12 @@
 /**
  * Unit tests for leakDetectionService
  */
-const { investigateLeakByHashes } = require('../../../backend/services/leakDetectionService');
+const { investigateLeakByHashes } = require('../../../backend/services/variantService');
 const db = require('../../../backend/config/db');
 
 jest.mock('../../../backend/config/db');
 
-describe('leakDetectionService', () => {
+describe('variantService - leakDetection', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });

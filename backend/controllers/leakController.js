@@ -1,5 +1,5 @@
 const db = require('../config/db');
-const leakDetectionService = require('../services/leakDetectionService');
+const { investigateLeakByHashes } = require('../services/variantService');
 const eventBus = require('../services/eventBus');
 
 /**
@@ -16,7 +16,7 @@ async function reportLeak(req, res) {
 
   try {
     // Usually we would insert this into a leak_reports table, but for MVP we will directly investigate
-    const results = await leakDetectionService.investigateLeakByHashes(hashes);
+    const results = await investigateLeakByHashes(hashes);
 
     if (results.length > 0) {
       // Find the student with the highest confidence
@@ -57,7 +57,7 @@ async function investigateLeak(req, res) {
   }
 
   try {
-    const results = await leakDetectionService.investigateLeakByHashes(hashes);
+    const results = await investigateLeakByHashes(hashes);
     return res.status(200).json({
       success: true,
       data: results
