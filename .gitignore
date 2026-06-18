@@ -18,3 +18,9 @@ yarn-debug.log*
 # OS files
 .DS_Store
 Thumbs.db
+
+#graphify
+graphify-out/*
+
+# Documentation (Added as requested, but see my note in chat!)
+docs/
